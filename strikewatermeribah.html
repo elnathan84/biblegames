@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Massah and Meribah: Motion Edition</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- TensorFlow.js and Pose Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');
+        body {
+            font-family: 'Cinzel', serif;
+            background-color: #f3e5ab;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 1;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            z-index: 20;
+        }
+        #video-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 160px;
+            height: 120px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 4px solid #8b4513;
+            z-index: 10;
+            background: #000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        #camera-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+        #title-screen {
+            background: rgba(0,0,0,0.85);
+            z-index: 50;
+            pointer-events: auto;
+        }
+        
+        /* Loading spinner */
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #d97706;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Camera Feed PIP -->
+    <div id="video-container">
+        <video id="camera-feed" playsinline autoplay muted></video>
+    </div>
+
+    <!-- UI Layer -->
+    <div id="ui-layer" class="p-6">
+        <div class="text-center">
+            <h1 class="text-3xl md:text-5xl font-bold text-amber-900 drop-shadow-md">EXODUS 17:6</h1>
+            <p id="instruction-text" class="text-amber-800 mt-2 font-bold text-lg transition-opacity duration-300">
+                Loading Camera...
+            </p>
+        </div>
+        
+        <!-- Power Meter -->
+        <div id="power-meter-container" class="self-center mb-10 w-80 h-10 border-4 border-amber-900 rounded-full bg-amber-100 hidden relative overflow-hidden shadow-lg">
+            <!-- Target Zone (80% to 95%) -->
+            <div class="absolute top-0 h-full bg-green-500 opacity-60 z-0 border-l-2 border-r-2 border-green-800" style="left: 80%; width: 15%;"></div>
+            
+            <!-- Moving Bar -->
+            <div id="power-bar" class="h-full bg-red-600 width-0 transition-none z-10 opacity-90 relative"></div>
+            
+            <div class="absolute top-0 left-0 w-full h-full flex items-center justify-center text-xs font-bold text-amber-900 z-20">
+                STRIKE THE GREEN ZONE
+            </div>
+        </div>
+    </div>
+
+    <!-- Title Screen -->
+    <div id="title-screen" class="absolute inset-0 flex flex-col items-center justify-center text-white p-4">
+        <h1 class="text-5xl md:text-7xl font-bold text-amber-500 mb-4 text-center">Massah and Meribah</h1>
+        <p class="text-xl md:text-2xl text-center max-w-lg mb-8 text-gray-300">
+            "Raise your hand to aim. Strike when the bar hits green to break the rock instantly."
+        </p>
+        
+        <div id="loading-indicator" class="hidden flex flex-col items-center mb-6">
+            <div class="loader"></div>
+            <p class="text-amber-200">Preparing Vision Models...</p>
+        </div>
+
+        <button id="start-btn" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-4 px-12 rounded-full text-xl transition transform hover:scale-105 shadow-[0_0_20px_rgba(217,119,6,0.5)] border-2 border-amber-300">
+            ENABLE CAMERA & START
+        </button>
+        <p class="mt-4 text-xs text-gray-500">Motion controls require camera access.</p>
+    </div>
+
+    <script>
+        // --- Setup ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('start-btn');
+        const titleScreen = document.getElementById('title-screen');
+        const instructionText = document.getElementById('instruction-text');
+        const powerMeterContainer = document.getElementById('power-meter-container');
+        const powerBar = document.getElementById('power-bar');
+        const video = document.getElementById('camera-feed');
+        const loadingIndicator = document.getElementById('loading-indicator');
+
+        let width, height;
+        let particles = [];
+        let rock;
+        let rod;
+        let gameState = 'START'; // START, PLAYING, WON
+        let lastTime = 0;
+        
+        // Motion State
+        let detector;
+        let isCameraReady = false;
+        let lastWristY = 0;
+        let currentCharge = 0; // 0.0 to 1.0
+        let oscillationTime = 0;
+        let isHandRaised = false;
+        
+        // Game Settings
+        const TARGET_MIN = 0.80;
+        const TARGET_MAX = 0.95;
+
+        // --- Game Objects ---
+
+        class Rock {
+            constructor() {
+                this.x = width / 2;
+                this.y = height * 0.75;
+                this.baseWidth = Math.min(width * 0.4, 250);
+                this.height = this.baseWidth * 0.8;
+                this.cracks = 0; // 0 to 4 (4 is broken)
+                this.shake = 0;
+                this.color = '#78350f'; // Amber 900
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + (Math.random() - 0.5) * this.shake, this.y + (Math.random() - 0.5) * this.shake);
+                
+                // Draw Rock Shape
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.moveTo(-this.baseWidth/2, 0); 
+                ctx.lineTo(-this.baseWidth/2 + 20, -this.height * 0.6);
+                ctx.lineTo(-this.baseWidth * 0.2, -this.height); 
+                ctx.lineTo(this.baseWidth * 0.2, -this.height * 0.9);
+                ctx.lineTo(this.baseWidth/2 - 10, -this.height * 0.5);
+                ctx.lineTo(this.baseWidth/2, 0); 
+                ctx.closePath();
+                ctx.fill();
+
+                // Shading
+                ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+
+                // Cracks
+                if (this.cracks > 0) {
+                    ctx.strokeStyle = '#2a1205';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    
+                    if (this.cracks >= 1) { ctx.moveTo(0, -this.height * 0.8); ctx.lineTo(-20, -this.height * 0.4); ctx.lineTo(10, -this.height * 0.2); }
+                    if (this.cracks >= 2) { ctx.moveTo(0, -this.height * 0.8); ctx.lineTo(30, -this.height * 0.5); ctx.lineTo(10, 0); }
+                    if (this.cracks >= 3) { ctx.moveTo(-20, -this.height * 0.4); ctx.lineTo(-50, -this.height * 0.2); ctx.moveTo(30, -this.height * 0.5); ctx.lineTo(60, -this.height * 0.3); }
+                    ctx.stroke();
+                }
+                ctx.restore();
+                
+                if (this.shake > 0) this.shake *= 0.9;
+                if (this.shake < 0.5) this.shake = 0;
+            }
+
+            hit(power) {
+                // Determine Hit Quality
+                let isPerfect = false;
+                
+                // Check if hit was in target zone
+                if (power >= TARGET_MIN && power <= TARGET_MAX) {
+                    isPerfect = true;
+                }
+
+                this.shake = isPerfect ? 50 : 10;
+                
+                // Dust
+                for(let i=0; i<15; i++) {
+                    particles.push(new Particle(this.x + (Math.random()-0.5)*100, this.y - this.height/2, 'dust'));
+                }
+
+                if (isPerfect) {
+                    this.cracks = 4; // Instant Break
+                    instructionText.textContent = "PERFECT STRIKE!";
+                    instructionText.style.color = "#16a34a"; // Green
+                    startWaterFlow();
+                } else {
+                    // Weak hit, maybe just shake or add slight crack if very close
+                    instructionText.textContent = "Missed the Sweet Spot!";
+                    instructionText.style.color = "#dc2626"; // Red
+                }
+            }
+        }
+
+        class Rod {
+            constructor() {
+                this.angle = -Math.PI / 4; // Resting
+                this.targetAngle = -Math.PI / 4;
+                this.swinging = false;
+                this.pivotX = width * 0.8;
+                this.pivotY = height * 0.8;
+                this.length = Math.min(width, height) * 0.6; // Longer staff
+                this.state = 'idle'; // idle, down, up, hit
+                this.lastPower = 0;
+            }
+
+            update(dt) {
+                this.pivotX = width * 0.85;
+                this.pivotY = height * 0.9;
+
+                if (this.swinging) {
+                    // Swing Logic
+                    const speed = 20 * dt; 
+                    if (this.state === 'down') {
+                        this.angle -= speed;
+                        if (this.angle < -Math.PI * 0.85) {
+                            this.angle = -Math.PI * 0.85;
+                            this.state = 'hit';
+                            rock.hit(this.lastPower);
+                            // Audio cue could go here
+                            this.state = 'up';
+                        }
+                    } else if (this.state === 'up') {
+                        this.angle += speed * 0.3;
+                        if (this.angle > this.targetAngle) {
+                            this.angle = this.targetAngle;
+                            this.swinging = false;
+                        }
+                    }
+                } else {
+                    // Follow "Charge" state visually
+                    // Resting = -45 deg, Fully Raised = -100 deg
+                    const raisedAngle = -Math.PI / 1.8;
+                    const restingAngle = -Math.PI / 4;
+                    
+                    // Smoothly interpolate towards target based on current oscillation
+                    // If hand is raised, staff moves slightly with oscillation
+                    let target = restingAngle;
+                    if (isHandRaised) {
+                        target = raisedAngle - (currentCharge * 0.2); // Subtle movement
+                    }
+                    
+                    this.angle += (target - this.angle) * 5 * dt;
+                }
+            }
+
+            strike(power) {
+                if (this.swinging) return;
+                this.swinging = true;
+                this.state = 'down';
+                this.lastPower = power;
+                // Don't reset currentCharge immediately so user sees where they hit
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.pivotX, this.pivotY);
+                ctx.rotate(this.angle);
+
+                // Rod
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = '#5d4037';
+                ctx.lineWidth = 14;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(0, -this.length);
+                ctx.stroke();
+                
+                // Grip
+                ctx.strokeStyle = '#8d6e63';
+                ctx.lineWidth = 16;
+                ctx.beginPath();
+                ctx.moveTo(0, -20);
+                ctx.lineTo(0, -70);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type; 
+                const angle = (Math.random() * Math.PI) + Math.PI; 
+                const speed = Math.random() * 10 + 5;
+                this.vx = Math.cos(angle) * (type === 'dust' ? 2 : 5);
+                this.vy = Math.sin(angle) * (type === 'dust' ? 2 : speed);
+                if (type === 'water') {
+                    this.vy = -Math.random() * 15 - 8; 
+                    this.vx = (Math.random() - 0.5) * 12;
+                }
+                this.life = 1.0;
+                this.gravity = type === 'dust' ? 0.05 : 0.5;
+                this.size = Math.random() * 6 + 3;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.life -= 0.015;
+            }
+            draw() {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.type === 'dust' ? '#d6d3d1' : '#3b82f6';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        // --- Logic ---
+
+        async function init() {
+            resize();
+            rock = new Rock();
+            rod = new Rod();
+            window.addEventListener('resize', resize);
+        }
+
+        async function setupCameraAndAI() {
+            try {
+                // 1. Get Camera
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: 640, height: 480 },
+                    audio: false
+                });
+                video.srcObject = stream;
+                await new Promise(resolve => video.onloadedmetadata = resolve);
+                video.play();
+
+                // 2. Load Model
+                const detectorConfig = { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING };
+                detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, detectorConfig);
+
+                isCameraReady = true;
+                instructionText.textContent = "Raise hand high to start aiming!";
+                powerMeterContainer.classList.remove('hidden');
+                
+                // Start detection loop
+                detectPoseLoop();
+                
+                // Start game loop
+                lastTime = performance.now();
+                requestAnimationFrame(loop);
+
+            } catch (err) {
+                alert("Camera error: " + err.message);
+                // Fallback or retry logic could go here
+                loadingIndicator.classList.add('hidden');
+                startBtn.classList.remove('hidden');
+                startBtn.textContent = "Retry Camera";
+            }
+        }
+
+        async function detectPoseLoop() {
+            if (gameState === 'WON') return;
+
+            if (detector && video.readyState === 4) {
+                try {
+                    const poses = await detector.estimatePoses(video);
+                    if (poses && poses.length > 0) {
+                        processMotion(poses[0].keypoints);
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+            // Check approx every 60ms (~16fps for detection) to save perf
+            setTimeout(detectPoseLoop, 60);
+        }
+
+        function processMotion(kp) {
+            // Find wrist and shoulder
+            // We'll check both hands, pick the highest one (smallest Y)
+            const rw = kp.find(k => k.name === 'right_wrist');
+            const lw = kp.find(k => k.name === 'left_wrist');
+            const rs = kp.find(k => k.name === 'right_shoulder');
+            const ls = kp.find(k => k.name === 'left_shoulder');
+            const nose = kp.find(k => k.name === 'nose');
+
+            if (!nose) return; // Need nose as a reference point
+
+            // Determine active hand (highest confidence or just highest Y)
+            let activeWrist = null;
+            let referenceY = nose.y; // Height reference
+
+            // Use right hand preference, fallback to left
+            if (rw && rw.score > 0.3) activeWrist = rw;
+            else if (lw && lw.score > 0.3) activeWrist = lw;
+
+            if (!activeWrist) return;
+
+            const wristY = activeWrist.y;
+            
+            // Logic:
+            // 1. Hand raised high -> Enables oscillation (Aiming)
+            // 2. Hand moves down fast -> Strike with current charge value
+
+            // Thresholds
+            const raiseThreshold = nose.y + 20; 
+            const strikeVelocityThreshold = 15; 
+
+            // 1. Aiming Logic
+            if (wristY < raiseThreshold) {
+                isHandRaised = true;
+                if (!rod.swinging) {
+                    instructionText.textContent = "Aiming... Swing down on GREEN!";
+                    instructionText.style.color = "#d97706"; // Amber
+                }
+            } else {
+                isHandRaised = false;
+                // If hand is lowered slowly without swinging, pause/reset?
+                if (!rod.swinging && gameState !== 'WON') {
+                     instructionText.textContent = "Raise hand to Aim";
+                     instructionText.style.color = "#92400e";
+                }
+            }
+
+            // 2. Strike Logic
+            // Calculate velocity (simple difference)
+            const velocity = (wristY - lastWristY); 
+            
+            // Only allow strike if we were previously aiming (hand was raised or recently raised)
+            if (velocity > strikeVelocityThreshold && !rod.swinging) {
+                // Trigger Strike
+                rod.strike(currentCharge);
+            }
+
+            lastWristY = wristY;
+            updateUI();
+        }
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            if (rock) {
+                rock.x = width/2;
+                rock.y = height * 0.85;
+            }
+        }
+
+        function startWaterFlow() {
+            gameState = 'WON';
+            instructionText.textContent = "The rock is broken! Water flows!";
+            instructionText.className = "text-3xl font-bold text-blue-600 mt-4 drop-shadow-md";
+            powerMeterContainer.classList.add('hidden');
+        }
+
+        function loop(timestamp) {
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            update(dt);
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        function update(dt) {
+            // Oscillation Logic
+            if (gameState === 'PLAYING' && isHandRaised && !rod.swinging) {
+                oscillationTime += dt * 3.0; // Speed of oscillation
+                // Oscillate between 0 and 1
+                currentCharge = (Math.sin(oscillationTime) + 1) / 2;
+                updateUI();
+            }
+
+            rod.update(dt);
+
+            // Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+
+            // Water Generation if Won
+            if (gameState === 'WON') {
+                for(let i=0; i<8; i++) {
+                    particles.push(new Particle(rock.x, rock.y - rock.height/2, 'water'));
+                }
+            }
+        }
+
+        function draw() {
+            // Background
+            let grad = ctx.createLinearGradient(0, 0, 0, height);
+            grad.addColorStop(0, '#60a5fa'); 
+            grad.addColorStop(0.5, '#bfdbfe');
+            grad.addColorStop(0.5, '#d97706'); 
+            grad.addColorStop(1, '#fcd34d'); 
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0, width, height);
+
+            // Sun
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(width * 0.8, height * 0.2, 50, 0, Math.PI*2);
+            ctx.fill();
+
+            rock.draw();
+            rod.draw();
+
+            for (let p of particles) p.draw();
+        }
+
+        function updateUI() {
+            const percentage = Math.floor(currentCharge * 100);
+            powerBar.style.width = `${percentage}%`;
+            
+            // Color change
+            // Visual feedback on where the cursor is
+            if (currentCharge >= TARGET_MIN && currentCharge <= TARGET_MAX) {
+                powerBar.className = 'h-full bg-green-500 transition-none shadow-[0_0_15px_rgba(34,197,94,0.8)]';
+            } else {
+                powerBar.className = 'h-full bg-red-600 transition-none';
+            }
+        }
+
+        // Start Button
+        startBtn.addEventListener('click', () => {
+            startBtn.classList.add('hidden');
+            loadingIndicator.classList.remove('hidden');
+            setupCameraAndAI();
+            titleScreen.classList.add('hidden');
+            gameState = 'PLAYING';
+            rock.cracks = 0;
+        });
+
+        init();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Battle of Rephidim Simulator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- TensorFlow.js and Pose Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Cinzel', serif;
+            overflow: hidden;
+            background-color: #f3e5ab; /* Desert sand */
+            touch-action: none;
+        }
+
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #video-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 160px;
+            height: 120px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 4px solid #8b4513;
+            z-index: 10;
+            background: #000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        #camera-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hud-top {
+            text-align: center;
+            padding-top: 20px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            padding: 8px 24px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border-radius: 99px;
+            font-size: 1.2rem;
+            border: 2px solid rgba(255,255,255,0.3);
+            transition: all 0.3s ease;
+        }
+
+        .status-winning {
+            background: rgba(59, 130, 246, 0.9); /* Blue */
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+            transform: scale(1.1);
+        }
+
+        .status-losing {
+            background: rgba(239, 68, 68, 0.9); /* Red */
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
+        }
+
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            pointer-events: auto;
+        }
+
+        /* End Screen Overlay */
+        #end-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 60;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            pointer-events: auto;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 1s ease;
+        }
+
+        #end-screen.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Fix: Ensure hidden class overrides the ID display:flex */
+        #start-screen.hidden {
+            display: none !important;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+
+        .moses-avatar {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 200px;
+            z-index: 5;
+            transition: transform 0.5s ease;
+        }
+
+        /* Loading spinner */
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #d97706;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .victory-text {
+            font-size: 3rem; 
+            font-weight: bold; 
+            color: #fbbf24;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.8);
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+        }
+
+        .subtitle-text {
+            font-size: 1.5rem;
+            color: #ccc;
+            margin-top: 1rem;
+            text-align: center;
+            max-width: 600px;
+        }
+
+        @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    </style>
+</head>
+<body>
+
+    <!-- Game Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Moses Avatar Representation (Bottom Center) -->
+    <div id="moses-container" class="moses-avatar">
+        <svg viewBox="0 0 100 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Rock -->
+            <path d="M10 150 L90 150 L80 120 L20 120 Z" fill="#5D4037"/>
+            <!-- Body -->
+            <rect x="35" y="80" width="30" height="60" fill="#F5F5F5"/>
+            <path d="M35 80 L65 80 L80 140 L20 140 Z" fill="#E0E0E0"/> 
+            <!-- Head -->
+            <circle cx="50" cy="65" r="12" fill="#FFCC80"/>
+            <path d="M38 65 Q50 90 62 65" stroke="white" stroke-width="2" fill="white"/> <!-- Beard -->
+            <!-- Staff -->
+            <line x1="75" y1="40" x2="75" y2="150" stroke="#8D6E63" stroke-width="3"/>
+            
+            <!-- Arms (Animated via JS) -->
+            <g id="arms-group">
+                <!-- Left Arm -->
+                <line id="arm-left" x1="35" y1="85" x2="15" y2="100" stroke="#F5F5F5" stroke-width="8" stroke-linecap="round"/>
+                <!-- Right Arm -->
+                <line id="arm-right" x1="65" y1="85" x2="85" y2="100" stroke="#F5F5F5" stroke-width="8" stroke-linecap="round"/>
+            </g>
+        </svg>
+    </div>
+
+    <!-- UI Overlay -->
+    <div id="ui-layer">
+        <div class="hud-top">
+            <h1 class="text-3xl font-bold text-amber-900 mb-2 tracking-widest">EXODUS 17:12</h1>
+            <div id="status-box" class="status-indicator">
+                Prepare for Battle
+            </div>
+            <div id="score-board" class="mt-2 text-amber-900 font-bold bg-white/30 inline-block px-4 py-1 rounded-lg backdrop-blur-sm">
+                Israel: 0 | Amalek: 0
+            </div>
+            <div class="mt-2 text-amber-800 text-sm font-bold bg-white/20 inline-block px-3 py-1 rounded-full">
+                Fight until sunset...
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Feed (Picture in Picture) -->
+    <div id="video-container">
+        <video id="camera-feed" playsinline autoplay muted></video>
+    </div>
+
+    <!-- Start / Loading Screen -->
+    <div id="start-screen">
+        <h1 class="text-4xl md:text-6xl font-bold text-amber-400 mb-4 text-center">The Battle of Rephidim</h1>
+        <p class="max-w-md text-center text-gray-300 mb-6 px-4">
+            Simulate the battle. When you raise your hands, Israel prevails. <br><br>
+            <strong>Survive until the sun goes down.</strong>
+        </p>
+
+        <!-- New Duration Controls -->
+        <div id="settings-panel" class="mb-8 w-64 bg-black/40 p-4 rounded-xl border border-amber-900/50 backdrop-blur-sm">
+             <label class="block text-amber-200 mb-3 font-bold text-center text-lg">
+                 Battle Duration: <span id="duration-display" class="text-amber-400">30</span>s
+             </label>
+             <input type="range" id="duration-slider" min="10" max="120" value="30" step="10" 
+               class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-amber-500">
+             <div class="flex justify-between text-xs text-gray-400 px-1 mt-2 font-sans">
+                <span>10s</span>
+                <span>2m</span>
+             </div>
+        </div>
+        
+        <div id="loading-indicator" class="hidden flex flex-col items-center">
+            <div class="loader"></div>
+            <p>Loading Vision Models...</p>
+        </div>
+
+        <button id="start-btn" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-4 px-10 rounded-full text-xl transition transform hover:scale-105 shadow-lg border-2 border-amber-300">
+            START BATTLE
+        </button>
+        <p class="mt-4 text-xs text-gray-500">Camera access required. Data stays on device.</p>
+    </div>
+
+    <!-- End Screen -->
+    <div id="end-screen">
+        <div id="end-content" class="flex flex-col items-center">
+            <h1 id="end-title" class="victory-text">SUNSET</h1>
+            <p id="end-subtitle" class="subtitle-text">The sun has set on the battle.</p>
+            <div id="final-score" class="mt-6 text-2xl font-bold text-white"></div>
+            <button onclick="location.reload()" class="mt-8 bg-white text-amber-900 font-bold py-3 px-8 rounded-full hover:bg-gray-200 transition">
+                PLAY AGAIN
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration & State ---
+        const CONFIG = {
+            armySize: 80,
+            spawnRateHandsUp: 0.1, // Fast spawn for Israel
+            spawnRateHandsDown: 0.02, // Slow spawn for Israel
+            enemySpawnRate: 0.06, // Constant pressure
+            winScore: 100,
+            gameDuration: 30000 // Default 30s, modified by slider
+        };
+
+        const STATE = {
+            isHandsUp: false,
+            isGameRunning: false,
+            isGameOver: false,
+            model: null,
+            detector: null,
+            score: { israel: 0, amalek: 0 },
+            particles: [],
+            effects: [], 
+            startTime: 0,
+            lastTime: 0
+        };
+
+        // --- DOM Elements ---
+        const video = document.getElementById('camera-feed');
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('start-btn');
+        const startScreen = document.getElementById('start-screen');
+        const settingsPanel = document.getElementById('settings-panel');
+        const durationSlider = document.getElementById('duration-slider');
+        const durationDisplay = document.getElementById('duration-display');
+        const endScreen = document.getElementById('end-screen');
+        const endTitle = document.getElementById('end-title');
+        const endSubtitle = document.getElementById('end-subtitle');
+        const finalScore = document.getElementById('final-score');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const statusBox = document.getElementById('status-box');
+        const scoreBoard = document.getElementById('score-board');
+        const armLeft = document.getElementById('arm-left');
+        const armRight = document.getElementById('arm-right');
+
+        // --- Initialization ---
+        
+        // Update slider display
+        durationSlider.addEventListener('input', (e) => {
+            durationDisplay.textContent = e.target.value;
+        });
+        
+        startBtn.addEventListener('click', async () => {
+            // UI Updates
+            startBtn.classList.add('hidden');
+            settingsPanel.classList.add('hidden');
+            loadingIndicator.classList.remove('hidden');
+            
+            // Set Duration
+            CONFIG.gameDuration = parseInt(durationSlider.value) * 1000;
+            
+            try {
+                await setupCamera();
+                await loadModel();
+                startGame();
+            } catch (err) {
+                console.error(err);
+                alert("Error starting app: " + err.message + ". Please ensure camera permissions are allowed.");
+                // Reset UI on error
+                startBtn.classList.remove('hidden');
+                settingsPanel.classList.remove('hidden');
+                loadingIndicator.classList.add('hidden');
+            }
+        });
+
+        async function setupCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'user',
+                    width: 640,
+                    height: 480
+                },
+                audio: false
+            });
+            video.srcObject = stream;
+            
+            return new Promise((resolve) => {
+                video.onloadedmetadata = () => {
+                    video.play();
+                    resolve(video);
+                };
+            });
+        }
+
+        async function loadModel() {
+            // Using MoveNet Lightning for mobile performance
+            const detectorConfig = {
+                modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
+            };
+            STATE.detector = await poseDetection.createDetector(
+                poseDetection.SupportedModels.MoveNet, 
+                detectorConfig
+            );
+        }
+
+        function startGame() {
+            startScreen.classList.add('hidden'); // Hide overlay
+            STATE.isGameRunning = true;
+            STATE.startTime = Date.now();
+            resizeCanvas();
+            requestAnimationFrame(gameLoop);
+            
+            // Start Pose Detection Loop (separate from render loop to save FPS)
+            detectPoseLoop();
+        }
+
+        function endGame() {
+            STATE.isGameRunning = false;
+            STATE.isGameOver = true;
+            endScreen.classList.add('visible');
+            
+            const israelWin = STATE.score.israel > STATE.score.amalek;
+            
+            if (israelWin) {
+                endTitle.textContent = "VICTORY";
+                endTitle.style.color = "#fbbf24";
+                endSubtitle.textContent = "The sun has set. Joshua has overwhelmed Amalek with the sword.";
+            } else {
+                endTitle.textContent = "DEFEAT";
+                endTitle.style.color = "#ef4444";
+                endSubtitle.textContent = "The sun has set, but Amalek was stronger today.";
+            }
+            
+            finalScore.textContent = `Final Score - Israel: ${STATE.score.israel} | Amalek: ${STATE.score.amalek}`;
+        }
+
+        // --- Pose Detection Logic ---
+
+        async function detectPoseLoop() {
+            if (!STATE.isGameRunning && !STATE.isGameOver) return;
+            if (STATE.isGameOver) return;
+
+            try {
+                const poses = await STATE.detector.estimatePoses(video);
+                
+                if (poses && poses.length > 0) {
+                    const kp = poses[0].keypoints;
+                    
+                    // Find keypoints
+                    const leftWrist = kp.find(k => k.name === 'left_wrist');
+                    const rightWrist = kp.find(k => k.name === 'right_wrist');
+                    const leftShoulder = kp.find(k => k.name === 'left_shoulder');
+                    const rightShoulder = kp.find(k => k.name === 'right_shoulder');
+                    const nose = kp.find(k => k.name === 'nose');
+
+                    // Check confidence
+                    const confidenceThreshold = 0.3;
+                    
+                    let handsUp = false;
+
+                    // Logic: Is wrist higher (smaller Y value) than shoulder?
+                    // Adding a small buffer (20px) to make it require a distinct raise
+                    if (leftWrist && leftShoulder && leftWrist.score > confidenceThreshold && leftShoulder.score > confidenceThreshold) {
+                        if (leftWrist.y < leftShoulder.y - 20) handsUp = true;
+                    }
+                    if (rightWrist && rightShoulder && rightWrist.score > confidenceThreshold && rightShoulder.score > confidenceThreshold) {
+                        if (rightWrist.y < rightShoulder.y - 20) handsUp = true;
+                    }
+
+                    // Fallback logic if shoulders aren't detected well: compare to nose
+                    if (!handsUp && nose && nose.score > confidenceThreshold) {
+                        if ((leftWrist && leftWrist.score > confidenceThreshold && leftWrist.y < nose.y) || 
+                            (rightWrist && rightWrist.score > confidenceThreshold && rightWrist.y < nose.y)) {
+                            handsUp = true;
+                        }
+                    }
+
+                    updateState(handsUp);
+                }
+            } catch (e) {
+                console.error("Pose detection error:", e);
+            }
+
+            // Run detection every 100ms roughly to save battery
+            setTimeout(() => requestAnimationFrame(detectPoseLoop), 100);
+        }
+
+        function updateState(handsUp) {
+            STATE.isHandsUp = handsUp;
+            
+            // UI Updates
+            if (handsUp) {
+                statusBox.textContent = "HANDS UP: ISRAEL ADVANCES!";
+                statusBox.className = "status-indicator status-winning";
+                // Animate SVG Moses arms UP
+                armLeft.setAttribute("y2", "50");
+                armLeft.setAttribute("x2", "20");
+                armRight.setAttribute("y2", "50");
+                armRight.setAttribute("x2", "80");
+            } else {
+                statusBox.textContent = "HANDS DOWN: AMALEK PUSHES!";
+                statusBox.className = "status-indicator status-losing";
+                // Animate SVG Moses arms DOWN
+                armLeft.setAttribute("y2", "110");
+                armLeft.setAttribute("x2", "25");
+                armRight.setAttribute("y2", "110");
+                armRight.setAttribute("x2", "75");
+            }
+        }
+
+        // --- Game Simulation Logic ---
+
+        class ParticleEffect {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 5;
+                this.vy = (Math.random() - 0.5) * 5;
+                this.life = 1.0;
+                this.color = color;
+                this.size = Math.random() * 3 + 1;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.1; // gravity
+                this.life -= 0.05;
+            }
+            draw(ctx) {
+                ctx.globalAlpha = Math.max(0, this.life);
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        class Soldier {
+            constructor(team, x, y) {
+                this.team = team; 
+                this.x = x;
+                this.y = y;
+                this.state = 'move'; // 'move', 'fight'
+                this.fightTimer = 0;
+                this.randomOffset = Math.random() * 100;
+                
+                this.radius = 8; // Hitbox radius
+                this.speed = (Math.random() * 1.0) + 0.5; 
+            }
+
+            update(dt) {
+                if (this.state === 'move') {
+                    // Movement logic
+                    const direction = this.team === 'israel' ? 1 : -1;
+                    
+                    let speedMod = 1;
+                    if (this.team === 'israel') {
+                        speedMod = STATE.isHandsUp ? 2.0 : 0.5;
+                    } else {
+                        speedMod = STATE.isHandsUp ? 0.5 : 2.0;
+                    }
+
+                    this.x += this.speed * speedMod * direction;
+                } else if (this.state === 'fight') {
+                    this.fightTimer--;
+                    if (this.fightTimer <= 0) {
+                        this.state = 'move'; // Resume if for some reason fight ends without death
+                    }
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                
+                // Face direction
+                const dir = this.team === 'israel' ? 1 : -1;
+                ctx.scale(dir, 1);
+
+                // Team Colors
+                const color = this.team === 'israel' 
+                    ? (STATE.isHandsUp ? '#60a5fa' : '#1e3a8a') 
+                    : '#ef4444';
+                
+                // --- Stick Figure Animation ---
+                
+                // Legs
+                const time = Date.now();
+                let legOffset = 0;
+                if (this.state === 'move') {
+                    legOffset = Math.sin((time / 100) + this.randomOffset) * 6;
+                }
+                
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#222';
+                
+                // Back Leg
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-4 + legOffset, 12);
+                ctx.stroke();
+
+                // Front Leg
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(4 - legOffset, 12);
+                ctx.stroke();
+
+                // Body (Tunic)
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.moveTo(0, -14); // Neck
+                ctx.lineTo(-5, 0);  // Bottom Left
+                ctx.lineTo(5, 0);   // Bottom Right
+                ctx.fill();
+
+                // Head
+                ctx.fillStyle = '#e5bfa8'; // Skin
+                ctx.beginPath();
+                ctx.arc(0, -18, 4, 0, Math.PI*2);
+                ctx.fill();
+
+                // Helmet/Hat
+                ctx.fillStyle = this.team === 'israel' ? '#fff' : '#444'; 
+                ctx.beginPath();
+                ctx.arc(0, -20, 3, Math.PI, 0);
+                ctx.fill();
+
+                // Arm & Weapon
+                // Animation for arm
+                let armAngle = 0;
+                if (this.state === 'fight') {
+                    // Chop animation
+                    armAngle = Math.sin(time / 50) * 1.5; 
+                } else {
+                    // Holding steady forward
+                    armAngle = -0.5;
+                }
+
+                ctx.save();
+                ctx.translate(0, -12); // Shoulder pivot
+                ctx.rotate(armAngle);
+                
+                // Arm line
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(10, 0); ctx.stroke();
+
+                // Sword/Spear
+                ctx.strokeStyle = '#cbd5e1'; // Metal
+                ctx.lineWidth = 2;
+                ctx.beginPath(); 
+                if (this.team === 'israel') {
+                    // Spear
+                    ctx.moveTo(8, 0); ctx.lineTo(22, -2);
+                } else {
+                    // Curved sword
+                    ctx.moveTo(8, 0); ctx.quadraticCurveTo(15, -5, 20, 5);
+                }
+                ctx.stroke();
+                
+                ctx.restore(); // End Arm
+
+                ctx.restore(); // End Character
+            }
+        }
+
+        function spawnSoldier() {
+            // Updated spawn logic: Keep soldiers on the sand (bottom 65% of screen)
+            const horizon = canvas.height * 0.35;
+            const y = Math.random() * (canvas.height - horizon - 20) + horizon;
+            
+            // Spawn Israel
+            // Chance depends on hands state
+            const israelChance = STATE.isHandsUp ? 0.08 : 0.01;
+            if (Math.random() < israelChance) {
+                STATE.particles.push(new Soldier('israel', -10, y)); // Spawn slightly off screen
+            }
+
+            // Spawn Amalek
+            // Chance is relatively constant but aggressive
+            const amalekChance = STATE.isHandsUp ? 0.02 : 0.06;
+            if (Math.random() < amalekChance) {
+                STATE.particles.push(new Soldier('amalek', canvas.width + 10, y));
+            }
+        }
+
+        function gameLoop(timestamp) {
+            if (!STATE.isGameRunning) return;
+            const dt = timestamp - STATE.lastTime;
+            STATE.lastTime = timestamp;
+
+            const now = Date.now();
+            const elapsed = now - STATE.startTime;
+            const progress = Math.min(elapsed / CONFIG.gameDuration, 1.0);
+
+            // Clear Canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Background Terrain with Time of Day
+            drawTerrain(progress);
+
+            // Check for game over
+            if (progress >= 1.0) {
+                endGame();
+                return;
+            }
+
+            // Spawn Logic
+            spawnSoldier();
+
+            // Update & Draw Effects
+            for (let i = STATE.effects.length - 1; i >= 0; i--) {
+                const e = STATE.effects[i];
+                e.update();
+                e.draw(ctx);
+                if (e.life <= 0) STATE.effects.splice(i, 1);
+            }
+
+            // Update & Draw Soldiers
+            for (let i = STATE.particles.length - 1; i >= 0; i--) {
+                const p = STATE.particles[i];
+                p.update(dt);
+                p.draw(ctx);
+
+                // Boundary check (Despawn)
+                if (p.x < -50 || p.x > canvas.width + 50) {
+                    STATE.particles.splice(i, 1);
+                    continue;
+                }
+
+                // Collision check against enemies
+                if (p.state === 'move') {
+                    for (let j = STATE.particles.length - 1; j >= 0; j--) {
+                        if (i === j) continue;
+                        const other = STATE.particles[j];
+                        
+                        if (p.team !== other.team && other.state !== 'dead') { // avoid fighting ghosts
+                            const dx = p.x - other.x;
+                            const dy = p.y - other.y;
+                            const dist = Math.sqrt(dx*dx + dy*dy);
+
+                            if (dist < 15) { // Engagement range
+                                // Combat Encounter!
+                                p.state = 'fight';
+                                other.state = 'fight';
+                                
+                                // Set a random timer for combat resolution (e.g. 30-60 frames)
+                                p.fightTimer = 40;
+                                other.fightTimer = 40;
+
+                                // Immediate outcome calculation (delayed execution)
+                                setTimeout(() => {
+                                    // Check if they still exist
+                                    if (!STATE.particles.includes(p) || !STATE.particles.includes(other)) return;
+
+                                    // Israel bonus if hands up
+                                    const israelBonus = STATE.isHandsUp ? 1.8 : 0.4;
+                                    
+                                    const pPower = Math.random() * (p.team === 'israel' ? israelBonus : 1);
+                                    const otherPower = Math.random() * (other.team === 'israel' ? israelBonus : 1);
+
+                                    // Reset to move for the survivor
+                                    const loser = pPower > otherPower ? other : p;
+                                    const winner = pPower > otherPower ? p : other;
+
+                                    winner.state = 'move';
+                                    
+                                    // Remove loser
+                                    const index = STATE.particles.indexOf(loser);
+                                    if (index > -1) {
+                                        STATE.particles.splice(index, 1);
+                                        createExplosion(loser.x, loser.y, loser.team);
+                                        
+                                        // Score
+                                        if (winner.team === 'israel') STATE.score.israel++;
+                                        else STATE.score.amalek++;
+                                    }
+
+                                }, 500); // 500ms fight duration
+                            }
+                        }
+                    }
+                }
+            }
+            
+            updateScoreBoard();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- Visual Effects ---
+
+        function drawTerrain(progress) {
+            const w = canvas.width;
+            const h = canvas.height;
+            const time = Date.now() * 0.0002;
+
+            // Interpolate colors based on progress (0.0 = Noon, 1.0 = Sunset)
+            
+            // Sky Top Color
+            // Start: Sky Blue #0ea5e9, End: Deep Purple #4c1d95
+            const skyTop = interpolateColor([14, 165, 233], [76, 29, 149], progress);
+            
+            // Sky Bottom Color
+            // Start: Light Blue #bae6fd, End: Orange Red #ea580c
+            const skyBot = interpolateColor([186, 230, 253], [234, 88, 12], progress);
+
+            // 1. Sky Gradient
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.35);
+            skyGrad.addColorStop(0, `rgb(${skyTop.join(',')})`);
+            skyGrad.addColorStop(1, `rgb(${skyBot.join(',')})`);
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, w, h * 0.35);
+
+            // 2. The Sun
+            // Position: Start (85% W, 10% H) -> End (50% W, 40% H) - setting behind mountain
+            const sunX = w * (0.85 - (0.35 * progress));
+            const sunY = h * (0.10 + (0.30 * progress));
+            
+            // Sun Color: Yellow -> Red
+            const sunColor = interpolateColor([251, 191, 36], [220, 38, 38], progress);
+
+            ctx.save();
+            ctx.translate(sunX, sunY);
+            
+            // Sun Glow
+            let sunGlow = ctx.createRadialGradient(0, 0, 10, 0, 0, 60);
+            sunGlow.addColorStop(0, `rgba(${sunColor.join(',')}, 0.8)`);
+            sunGlow.addColorStop(1, `rgba(${sunColor.join(',')}, 0)`);
+            ctx.fillStyle = sunGlow;
+            ctx.beginPath(); ctx.arc(0,0,70,0,Math.PI*2); ctx.fill();
+
+            // Sun Core
+            ctx.fillStyle = `rgb(${sunColor.join(',')})`;
+            ctx.beginPath(); ctx.arc(0, 0, 25, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+
+            // 3. Moving Clouds (Tinted by time)
+            const cloudAlpha = 0.8 - (0.3 * progress); // Clouds get darker/transparent
+            ctx.fillStyle = `rgba(255, 255, 255, ${cloudAlpha})`;
+            drawCloud(ctx, (w * 0.2 + time * 20) % (w + 200) - 100, h * 0.1, 0.8);
+            drawCloud(ctx, (w * 0.6 + time * 10) % (w + 200) - 100, h * 0.18, 1.1);
+            
+            // 4. Distant Mountains (Darken with time)
+            const horizonY = h * 0.35;
+            // Amber 700 -> Gray 900
+            const mountColor = interpolateColor([180, 83, 9], [24, 24, 27], progress);
+            ctx.fillStyle = `rgb(${mountColor.join(',')})`;
+            
+            ctx.beginPath();
+            ctx.moveTo(0, h);
+            ctx.lineTo(0, horizonY);
+            for(let x = 0; x <= w; x+=10) {
+                 let mountainH = 20 + Math.abs(Math.sin(x*0.015)*30) + Math.sin(x*0.005)*10;
+                 ctx.lineTo(x, horizonY - mountainH);
+            }
+            ctx.lineTo(w, horizonY);
+            ctx.lineTo(w, h);
+            ctx.fill();
+
+            // 5. The Desert Ground
+            // Darker -> darker amber
+            const sandTop = interpolateColor([217, 119, 6], [146, 64, 14], progress);
+            const sandBot = interpolateColor([252, 211, 77], [180, 83, 9], progress);
+
+            let sandGrad = ctx.createLinearGradient(0, horizonY, 0, h);
+            sandGrad.addColorStop(0, `rgb(${sandTop.join(',')})`); 
+            sandGrad.addColorStop(1, `rgb(${sandBot.join(',')})`); 
+            ctx.fillStyle = sandGrad;
+            ctx.fillRect(0, horizonY, w, h - horizonY);
+            
+            // 6. Dune Shadows (Darken)
+            ctx.fillStyle = "rgba(0, 0, 0, 0.1)"; 
+            ctx.beginPath();
+            ctx.moveTo(0, h);
+            ctx.quadraticCurveTo(w * 0.3, h - 50, w * 0.6, h);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.moveTo(w * 0.4, h);
+            ctx.quadraticCurveTo(w * 0.7, h - 80, w, h - 20);
+            ctx.lineTo(w, h);
+            ctx.fill();
+        }
+
+        // Helper to mix colors
+        function interpolateColor(color1, color2, factor) {
+            var result = color1.slice();
+            for (var i = 0; i < 3; i++) {
+                result[i] = Math.round(result[i] + factor * (color2[i] - color1[i]));
+            }
+            return result;
+        }
+
+        function drawCloud(ctx, x, y, scale) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+            ctx.beginPath();
+            ctx.arc(0, 0, 20, 0, Math.PI * 2);
+            ctx.arc(25, -5, 25, 0, Math.PI * 2);
+            ctx.arc(50, 0, 20, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function createExplosion(x, y, team) {
+            // Particle burst
+            const particleCount = 8;
+            const color = team === 'israel' ? '#1e3a8a' : '#ef4444';
+            for (let i = 0; i < particleCount; i++) {
+                STATE.effects.push(new ParticleEffect(x, y, color));
+            }
+            
+            // Dust
+            STATE.effects.push(new ParticleEffect(x, y+10, '#92400e')); 
+        }
+
+        function updateScoreBoard() {
+            scoreBoard.textContent = `Israel: ${STATE.score.israel} | Amalek: ${STATE.score.amalek}`;
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+    </script>
+</body>
+</html>
