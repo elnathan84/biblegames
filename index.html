@@ -1,1 +1,334 @@
-git branch --set-upstream-to=biblegames/<branch> main
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biblical Motion Games</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Lato', sans-serif;
+            background-color: #f3e5ab; /* Desert Sand */
+            background-image: radial-gradient(#faeec0 2px, transparent 2px);
+            background-size: 30px 30px;
+            color: #451a03;
+            scroll-behavior: smooth; /* Smooth scrolling for anchor links */
+        }
+
+        h1, h2, h3, .font-cinzel {
+            font-family: 'Cinzel', serif;
+        }
+
+        .game-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .hero-pattern {
+            background-color: #78350f;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2392400e' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        /* Scroll Animations */
+        .fade-in-section {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+            will-change: opacity, visibility;
+        }
+        
+        .fade-in-section.is-visible {
+            opacity: 1;
+            transform: none;
+        }
+
+        /* Kid-Friendly Custom Animations */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(-3deg); }
+            50% { transform: rotate(3deg); }
+        }
+        .animate-wiggle {
+            animation: wiggle 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Navigation Bar -->
+    <nav class="bg-amber-900 text-amber-50 sticky top-0 z-50 shadow-md border-b-2 border-amber-700">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <!-- Brand/Home Link -->
+                <a href="#" class="font-cinzel font-bold text-xl tracking-wider hover:text-amber-200 transition-colors">
+                    Bible Games
+                </a>
+
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex space-x-6">
+                    <a href="#games" class="font-bold hover:text-amber-300 transition-colors py-2 border-b-2 border-transparent hover:border-amber-300">
+                        Games
+                    </a>
+                    <a href="#salvation" class="font-bold hover:text-amber-300 transition-colors py-2 border-b-2 border-transparent hover:border-amber-300 text-amber-200">
+                        Get to Know Jesus
+                    </a>
+                    <a href="#about" class="font-bold hover:text-amber-300 transition-colors py-2 border-b-2 border-transparent hover:border-amber-300">
+                        About the Developer
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero-pattern text-amber-50 py-16 px-4 shadow-lg border-b-4 border-amber-600">
+        <div class="max-w-4xl mx-auto text-center">
+            <h1 class="text-4xl md:text-6xl font-bold mb-4 drop-shadow-md">Biblical Motion Games</h1>
+            <p class="text-xl text-amber-200 max-w-2xl mx-auto">
+                Interactive web experiences that bring Scripture to life using your camera and motion control.
+            </p>
+        </div>
+    </header>
+
+    <!-- Games Grid -->
+    <main id="games" class="flex-grow container mx-auto px-4 py-12 scroll-mt-20">
+        <div class="flex items-center mb-8">
+            <h2 class="text-3xl font-bold text-amber-900 border-l-4 border-amber-600 pl-4">Available Games</h2>
+        </div>
+        
+        <div class="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+
+            <!-- Card 1: Battle of Rephidim -->
+            <a href="israelvamalekite.html" class="block group">
+                <article class="game-card bg-white rounded-2xl overflow-hidden shadow-md border-2 border-amber-900/10 h-full flex flex-col">
+                    <div class="h-48 bg-gradient-to-br from-blue-900 to-amber-700 flex items-center justify-center relative overflow-hidden">
+                        <!-- Decorative Abstract Scene -->
+                        <div class="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                        <div class="text-6xl">⚔️</div>
+                    </div>
+                    <div class="p-8 flex-grow">
+                        <h2 class="text-2xl font-bold text-amber-900 mb-2 group-hover:text-amber-700 transition-colors">
+                            The Battle of Rephidim
+                        </h2>
+                        <h3 class="text-sm font-bold text-amber-600 mb-4 tracking-widest uppercase">Exodus 17:11</h3>
+                        <p class="text-gray-600 mb-6">
+                            Take the role of Moses on the hill. Use your camera to track your arms—when you raise them, the Israelites prevail. When you lower them, the Amalekites win.
+                        </p>
+                        <div class="flex items-center text-sm text-gray-500 space-x-4">
+                            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>Motion Control</span>
+                            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>Simulation</span>
+                        </div>
+                    </div>
+                    <div class="px-8 py-4 bg-amber-50 border-t border-amber-100 flex justify-between items-center group-hover:bg-amber-100 transition-colors">
+                        <span class="font-bold text-amber-800">Play Game</span>
+                        <span class="text-xl transform group-hover:translate-x-1 transition-transform">→</span>
+                    </div>
+                </article>
+            </a>
+
+            <!-- Card 2: Massah and Meribah -->
+            <a href="strikewatermeribah.html" class="block group">
+                <article class="game-card bg-white rounded-2xl overflow-hidden shadow-md border-2 border-amber-900/10 h-full flex flex-col">
+                    <div class="h-48 bg-gradient-to-br from-amber-500 to-red-900 flex items-center justify-center relative overflow-hidden">
+                         <!-- Decorative Abstract Scene -->
+                         <div class="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                        <div class="text-6xl">🪨</div>
+                    </div>
+                    <div class="p-8 flex-grow">
+                        <h2 class="text-2xl font-bold text-amber-900 mb-2 group-hover:text-amber-700 transition-colors">
+                            Massah and Meribah
+                        </h2>
+                        <h3 class="text-sm font-bold text-amber-600 mb-4 tracking-widest uppercase">Exodus 17:6</h3>
+                        <p class="text-gray-600 mb-6">
+                            Wield the staff of Moses. Use precision timing and motion gestures to strike the rock at the perfect moment to bring forth water for the people.
+                        </p>
+                        <div class="flex items-center text-sm text-gray-500 space-x-4">
+                            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>Motion Control</span>
+                            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-purple-500 mr-2"></span>Timing</span>
+                        </div>
+                    </div>
+                    <div class="px-8 py-4 bg-amber-50 border-t border-amber-100 flex justify-between items-center group-hover:bg-amber-100 transition-colors">
+                        <span class="font-bold text-amber-800">Play Game</span>
+                        <span class="text-xl transform group-hover:translate-x-1 transition-transform">→</span>
+                    </div>
+                </article>
+            </a>
+
+        </div>
+    </main>
+
+    <!-- Salvation Section (Roman Road) -->
+    <section id="salvation" class="bg-gradient-to-b from-amber-900 to-amber-800 text-amber-50 py-20 px-4 scroll-mt-16">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-16 fade-in-section">
+                <h2 class="text-4xl md:text-5xl font-bold font-cinzel mb-4 text-amber-300">The Roman Road to Salvation</h2>
+                <div class="w-24 h-1 bg-amber-500 mx-auto rounded"></div>
+                <p class="mt-4 text-amber-200 italic">"Get to know Jesus through the Scriptures"</p>
+            </div>
+
+            <div class="space-y-12">
+                <!-- Step 1: The Problem -->
+                <div class="fade-in-section bg-amber-800/50 p-6 md:p-8 rounded-xl border border-amber-700 shadow-xl flex flex-col md:flex-row items-center gap-6 group hover:bg-amber-800/70 transition-colors duration-300">
+                    <div class="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center text-4xl shadow-lg flex-shrink-0 animate-float border-4 border-amber-600">
+                        <!-- Target with Missed Arrow (Missing the Mark) -->
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-14 h-14 text-gray-700">
+                          <!-- Target -->
+                          <circle cx="12" cy="12" r="10" class="text-gray-400" stroke="currentColor" /> 
+                          <circle cx="12" cy="12" r="6" class="text-gray-500" stroke="currentColor" />
+                          <circle cx="12" cy="12" r="2" class="text-red-500" fill="currentColor" stroke="none"/>
+                          <!-- Arrow stuck in outer ring -->
+                          <path d="M17.5 17.5 L15.5 15.5" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" />
+                          <path d="M17 18 L19 20 L17.5 18.5 L15.5 20.5" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-cinzel font-bold text-amber-300 mb-2">1. The Problem</h3>
+                        <p class="text-lg font-serif italic mb-2">"For all have sinned, and come short of the glory of God;"</p>
+                        <p class="text-sm font-bold text-amber-400 tracking-wider text-right">— Romans 3:23 (KJV)</p>
+                    </div>
+                </div>
+
+                <!-- Step 2: The Gift -->
+                <div class="fade-in-section bg-amber-800/50 p-6 md:p-8 rounded-xl border border-amber-700 shadow-xl flex flex-col md:flex-row items-center gap-6 delay-100 group hover:bg-amber-800/70 transition-colors duration-300">
+                    <div class="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center text-4xl shadow-lg flex-shrink-0 animate-bounce border-4 border-amber-600">
+                        <!-- Gift Box -->
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-14 h-14 text-red-500">
+                            <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 6a.75.75 0 00-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 000-1.5h-3.75V6z" clip-rule="evenodd" style="display:none;" /> <!-- Placeholder override -->
+                            <path d="M11.645 2.048C11.97 2.19 12 2.585 12 2.977v2.306h4.51c.394 0 .736.252.852.628l.942 3.063c.097.316-.01.66-.27.877l-2.046 1.704v5.337a2.25 2.25 0 01-2.25 2.25H12v-7.5H6.38v-3.774a2.25 2.25 0 01-2.25-2.25V9.75h-.363a.75.75 0 01-.73-.553l-.942-3.063a.897.897 0 01.852-1.168h4.51V2.977a.978.978 0 01.98-1.026 3.193 3.193 0 012.213.097zM6.38 8.658h11.24l-.626-2.036H7.006l-.626 2.036z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-cinzel font-bold text-amber-300 mb-2">2. The Gift</h3>
+                        <p class="text-lg font-serif italic mb-2">"For the wages of sin is death; but the gift of God is eternal life through Jesus Christ our Lord."</p>
+                        <p class="text-sm font-bold text-amber-400 tracking-wider text-right">— Romans 6:23 (KJV)</p>
+                    </div>
+                </div>
+
+                <!-- Step 3: The Cross -->
+                <div class="fade-in-section bg-amber-800/50 p-6 md:p-8 rounded-xl border border-amber-700 shadow-xl flex flex-col md:flex-row items-center gap-6 delay-200 group hover:bg-amber-800/70 transition-colors duration-300">
+                    <div class="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center text-4xl shadow-lg flex-shrink-0 border-4 border-amber-600">
+                        <!-- Cross with Heart -->
+                        <div class="relative w-14 h-14 animate-pulse">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-14 h-14 text-amber-800 absolute">
+                                <path fill-rule="evenodd" d="M12 2.25a.75.75 0 01.75.75v5.25H18a.75.75 0 010 1.5h-5.25V21a.75.75 0 01-1.5 0V9.75H6a.75.75 0 010-1.5h5.25V3a.75.75 0 01.75-.75z" clip-rule="evenodd" />
+                            </svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8 text-red-600 absolute bottom-0 right-0 transform translate-x-1 translate-y-1">
+                                <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-cinzel font-bold text-amber-300 mb-2">3. The Solution</h3>
+                        <p class="text-lg font-serif italic mb-2">"But God commendeth his love toward us, in that, while we were yet sinners, Christ died for us."</p>
+                        <p class="text-sm font-bold text-amber-400 tracking-wider text-right">— Romans 5:8 (KJV)</p>
+                    </div>
+                </div>
+
+                <!-- Step 4: The Response -->
+                <div class="fade-in-section bg-amber-800/50 p-6 md:p-8 rounded-xl border border-amber-700 shadow-xl flex flex-col md:flex-row items-center gap-6 delay-300 group hover:bg-amber-800/70 transition-colors duration-300">
+                    <div class="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center text-4xl shadow-lg flex-shrink-0 animate-wiggle border-4 border-amber-600">
+                        <!-- Speaking / Confess -->
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-14 h-14 text-blue-600">
+                            <path fill-rule="evenodd" d="M4.848 2.771A49.144 49.144 0 0112 2.25c2.43 0 4.817.178 7.152.52 1.978.292 3.348 2.024 3.348 3.97v6.02c0 1.946-1.37 3.678-3.348 3.97a48.901 48.901 0 01-3.476.383.39.39 0 00-.297.17l-2.755 4.133a.75.75 0 01-1.248 0l-2.755-4.133a.39.39 0 00-.297-.17 48.9 48.9 0 01-3.476-.384c-1.978-.29-3.348-2.024-3.348-3.97V6.741c0-1.946 1.37-3.68 3.348-3.97zM6.75 8.25a.75.75 0 01.75-.75h9a.75.75 0 010 1.5h-9a.75.75 0 01-.75-.75zm.75 2.25a.75.75 0 000 1.5H12a.75.75 0 000-1.5H7.5z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-cinzel font-bold text-amber-300 mb-2">4. The Response</h3>
+                        <p class="text-lg font-serif italic mb-2">"That if thou shalt confess with thy mouth the Lord Jesus, and shalt believe in thine heart that God hath raised him from the dead, thou shalt be saved."</p>
+                        <p class="text-sm font-bold text-amber-400 tracking-wider text-right">— Romans 10:9 (KJV)</p>
+                    </div>
+                </div>
+
+                <!-- Step 5: The Assurance -->
+                <div class="fade-in-section bg-amber-800/50 p-6 md:p-8 rounded-xl border border-amber-700 shadow-xl flex flex-col md:flex-row items-center gap-6 delay-400 group hover:bg-amber-800/70 transition-colors duration-300">
+                    <div class="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center text-4xl shadow-lg flex-shrink-0 animate-float border-4 border-amber-600">
+                        <!-- Happy Sun/Shield -->
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-14 h-14 text-yellow-500">
+                            <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 6a.75.75 0 00-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 000-1.5h-3.75V6z" clip-rule="evenodd" style="display:none;"/> 
+                            <path d="M12 5.75a.75.75 0 01.75.75v.033c.312.02.622.06.925.12 1.942.38 3.528 1.838 4.07 3.737.522 1.825-.138 3.778-1.54 4.888a.75.75 0 01-1.096-.934c.905-.716 1.332-1.977.995-3.156-.35-1.226-1.373-2.167-2.626-2.412a7.71 7.71 0 00-.728-.088V12a.75.75 0 01-1.5 0V8.687c-.244.022-.487.051-.728.088-1.253.245-2.276 1.186-2.626 2.412-.337 1.179.09 2.44.995 3.156a.75.75 0 01-1.096.934c-1.402-1.11-2.062-3.063-1.54-4.888.542-1.899 2.128-3.357 4.07-3.737.303-.06.613-.1.925-.12V6.5a.75.75 0 01.75-.75z" style="display:none;"/>
+                             <!-- Sun Icon -->
+                            <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-cinzel font-bold text-amber-300 mb-2">5. The Assurance</h3>
+                        <p class="text-lg font-serif italic mb-2">"For whosoever shall call upon the name of the Lord shall be saved."</p>
+                        <p class="text-sm font-bold text-amber-400 tracking-wider text-right">— Romans 10:13 (KJV)</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-16 fade-in-section">
+                <a href="#games" class="inline-block bg-amber-600 hover:bg-amber-500 text-white font-bold py-4 px-10 rounded-full text-lg transition transform hover:scale-105 shadow-lg border-2 border-amber-400">
+                    Back to Games
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="bg-amber-100 py-16 px-4 border-t-4 border-amber-600 scroll-mt-16">
+        <div class="max-w-3xl mx-auto text-center">
+            <h2 class="text-3xl font-bold text-amber-900 mb-8 font-cinzel">About the Developer</h2>
+            <div class="bg-white p-8 rounded-2xl shadow-lg border border-amber-200">
+                <!-- Updated Image -->
+                <img src="devpic.JPG" alt="EJ Salavarria" class="w-32 h-32 rounded-full mx-auto mb-4 object-cover border-4 border-amber-100 shadow-md">
+                
+                <h3 class="text-xl font-bold text-amber-900 mb-2">EJ Salavarria</h3>
+                <div class="w-16 h-1 bg-amber-500 mx-auto mb-4 rounded"></div>
+                <p class="text-gray-700 mb-6 leading-relaxed">
+                    Passionate about programming, technology, and the likes! "Biblical Motion Games" is a project dedicated to making Bible Stories interactive and physically engaging through the power of web-based computer vision.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-amber-900 text-amber-200 py-8 text-center">
+        <p class="text-lg font-bold mb-4 text-amber-100">By EJ Salavarria</p>
+        <p class="text-xs mt-2 opacity-60">Camera data is processed locally on your device and is not sent to any server.</p>
+    </footer>
+
+    <!-- Scroll Animation Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.1
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible');
+                        // Optional: stop observing once visible
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            const sections = document.querySelectorAll('.fade-in-section');
+            sections.forEach(section => {
+                observer.observe(section);
+            });
+        });
+    </script>
+
+</body>
+</html>
